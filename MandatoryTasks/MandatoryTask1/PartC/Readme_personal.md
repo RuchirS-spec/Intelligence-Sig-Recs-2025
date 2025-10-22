@@ -57,9 +57,7 @@ Each HyperGCN layer updates node features using a **two-step message passing** p
 
 ### 🧮 Mathematical Formulation
 
-\[
-X^{(l+1)} = \sigma \left( D_v^{-1/2} H W D_e^{-1} H^T D_v^{-1/2} X^{(l)} \Theta \right)
-\]
+![HyperGCN Equation](hypergcn_equation.svg)
 
 **Where:**
 
