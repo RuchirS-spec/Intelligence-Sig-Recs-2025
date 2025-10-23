@@ -1,0 +1,42 @@
+## 🌟 SeSS: Semantic Similarity Score via Scene Graphs (Unsupervised Pipeline)
+
+The **SeSS** project provides an **unsupervised** method for quantifying the **semantic similarity** between two images. The core pipeline converts visual content into structured **Scene Graphs** and then uses a simplified **Graph Convolutional Network (GCN)**-like approach to generate comparable graph embeddings.
+The score of around 0.5 between the images is perfect and it shows the key feature that the meaning behind the images is used, so a woman with her dog on the beach and the beach during sunset technically only have 50% in common that is the beach part, semantically everything else is different
+---
+
+### ⚙️ Pipeline and Architecture
+
+The process is divided into three consecutive stages:
+
+#### 1. Image Captioning
+* **Model:** **BLIP (Bootstrapping Latent-variable Image-Language Pre-training) base model** (`Salesforce/blip-image-captioning-base`).
+* **Function:** Converts raw images into concise, descriptive text captions, serving as the linguistic foundation for the subsequent stages.
+* **Example Output:** 🖼️ "a woman sitting on the beach with her dog"
+
+#### 2. Scene Graph Generation (Linguistic Parsing)
+* **Tool:** **spaCy** NLP library (`en_core_web_sm`) for dependency parsing.
+* **Method:** A **rule-based parser** (`robust_scene_parse`) extracts **(subject, relation, object)** triples from the captions.
+    * **Parsing Strategy:** Focuses on extracting relations based on **verbs**, **prepositions**, and **adjectival clauses**.
+* **Representation:** The triples are mapped onto a **directed graph (NetworkX)** where:
+    * **Nodes:** Represent entities (e.g., "woman," "dog," "beach").
+    * **Edges:** Represent the extracted relations (e.g., "sitting," "with," "on").
+* **Purpose:** Transforms the flat text description into a **structured, relational representation** that captures the scene's composition.
+
+#### 3. Graph Embedding via Message Passing
+
+This stage converts the relational Scene Graph structure into a dense vector, enabling direct comparison.
+
+| Component | Model/Method | Description |
+| :--- | :--- | :--- |
+| **Node Feature Matrix ($\mathbf{X}$)** | **Sentence Transformer** (`all-MiniLM-L6-v2`) | Encodes each entity (node label) into a dense, semantically rich vector (initial feature set). |
+| **Graph Filter ($\mathbf{A}_{\text{norm}}$)** | **Degree Normalization** | The adjacency matrix ($\mathbf{A}$) is augmented with self-loops ($\mathbf{A} + \mathbf{I}$) and normalized ($\mathbf{D}^{-1}\mathbf{A}$) to define how information propagates. |
+| **Message Passing** | **Propagation Function (GCN-like)** | Features are propagated across the graph iteratively ($K=2$ steps) using the normalized adjacency matrix:  $$\mathbf{H}^{(k)} = \text{Normalize}(\mathbf{A}_{\text{norm}} \mathbf{H}^{(k-1)})$$ This step facilitates **semantic diffusion**, ensuring the embedding of one entity (e.g., "dog") is influenced by its neighbors (e.g., "woman," "beach"). |
+| **Graph Vector ($\mathbf{g}_{\text{vec}}$)** | **Averaging & Normalization** | The final graph embedding is the mean of all final node embeddings ($\mathbf{H}^{(K)}$), normalized to a unit vector: $$\mathbf{g}_{\text{vec}} = \text{Normalize}(\text{Mean}(\mathbf{H}^{(K)}))$$ |
+
+---
+
+### 📊 Similarity Score
+
+* The **Semantic Similarity Score** is the **cosine similarity** between the two final graph embeddings ($\mathbf{g}_{\text{vec}, 1}$ and $\mathbf{g}_{\text{vec}, 2}$).
+* **Core Strength:** By using **scene graphs and message passing**, the method compares not just the *presence* of keywords, but the *relationship* and *context* of the entities within each image's scene.
+* **Example Result:** 🔢 `0.5336` (Similarity between a woman/dog on a beach and a sunset beach scene).
